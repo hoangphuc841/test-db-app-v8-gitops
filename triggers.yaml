@@ -1,0 +1,92 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: test-db-app-v8-git-binding
+spec:
+  params:
+    - name: git-repo-url
+      value: $(body.repository.clone_url)
+    - name: git-revision
+      value: $(body.head_commit.id)
+    - name: git-repo-name
+      value: $(body.repository.name)
+    - name: git-owner
+      value: $(body.repository.owner.login)
+
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: test-db-app-v8-git-template
+spec:
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: test-db-app-v8-run-
+        labels:
+          tekton.dev/pipeline: from-code-to-cluster
+          app.kubernetes.io/instance: test-db-app-v8
+      spec:
+        serviceAccountName: pipeline
+        pipelineRef:
+          name: from-code-to-cluster
+        params:
+          - name: app-repo-url
+            value: $(tt.params.git-repo-url)
+          - name: app-repo-revision
+            value: $(tt.params.git-revision)
+          - name: image-repo
+            value: "index.docker.io/hoangphuc842/test-db-app-v8" 
+          - name: GITOPS_REPO_URL
+            value: "$(tt.params.git-repo-url)-gitops"
+          - name: GITOPS_REPO_BRANCH
+            value: "main"
+          - name: MANIFEST_PATH
+            value: "deployment.yaml"
+          - name: docker-secret
+            value: "docker-credentials"
+
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: test-db-app-v8-listener
+spec:
+  serviceAccountName: test-db-app-v8-sa
+  triggers:
+    - binding:
+        name: test-db-app-v8-git-binding
+      template:
+        name: test-db-app-v8-git-template
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: test-db-app-v8-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: test-db-app-v8-listener-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-triggers-eventlistener-roles
+subjects:
+  - kind: ServiceAccount
+    name: test-db-app-v8-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: test-db-app-v8-listener-clusterbinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-triggers-eventlistener-clusterroles
+subjects:
+  - kind: ServiceAccount
+    name: test-db-app-v8-sa
+    namespace: default

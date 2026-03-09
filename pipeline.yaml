@@ -1,0 +1,39 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: test-db-app-v8-pipeline-run
+  annotations:
+    janus-idp.io/tekton: test-db-app-v8
+spec:
+  serviceAccountName: pipeline
+  pipelineRef:
+    name: from-code-to-cluster
+  params:
+  - name: image-repo
+    value: index.docker.io/hoangphuc842/test-db-app-v8
+  - name: app-repo-url
+    value: https://github.com/hoangphuc841/test-db-app-v8.git
+  - name: app-repo-revision
+    value: main
+  - name: GITOPS_REPO_URL
+    value: https://github.com/hoangphuc841/test-db-app-v8-gitops
+  - name: GITOPS_REPO_BRANCH
+    value: main
+  - name: MANIFEST_PATH
+    value: ./deployment.yaml
+  - name: docker-secret
+    value: docker-credentials 
+  - name: test-command
+    value: npm install && npm test
+  # (Optional override – can be omitted to use the pipeline default)
+  # - name: test-image
+  #   value: node:20
+  workspaces:
+  - name: source-workspace
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
