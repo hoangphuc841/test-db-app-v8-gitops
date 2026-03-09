@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: test-db-app-v8-backend
+    helios.io/managed-by: operator
+  name: test-db-app-v8-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-db-app-v8-backend
+  template:
+    metadata:
+      labels:
+        app: test-db-app-v8-backend
+    spec:
+      containers:
+      - env:
+        - name: NODE_ENV
+          value: production
+        image: hoangphuc842/test-db-app-v8:latest
+        name: test-db-app-v8-backend
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: test-db-app-v8-backend
+  name: test-db-app-v8-backend
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: test-db-app-v8-backend
+  type: ClusterIP
+
+---
+apiVersion: v1
+data:
+  DB_HOST: test-db-app-v8-backend-db
+  DB_NAME: test-db-app-v8-db
+  DB_PORT: "5432"
+  DB_SECRET_NAME: test-db-app-v8-backend-db-secret
+  DB_STORAGE: 1Gi
+  DB_TYPE: postgres
+  DB_VERSION: "16"
+kind: ConfigMap
+metadata:
+  labels:
+    app: test-db-app-v8-backend
+    helios.io/managed-by: operator
+    helios.io/trait: database
+  name: test-db-app-v8-backend-db-config
